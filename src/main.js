@@ -1,4 +1,5 @@
 import "./style.css";
+import Swal from "sweetalert2";
 
 const FORM_URL =
   "https://docs.google.com/forms/d/e/1FAIpQLScW8FIBjLsLC9GuklP7w9apLOemBPHnwqJ1CKF_rGGUD0kV0g/formResponse";
@@ -106,7 +107,6 @@ document.querySelector("#app").innerHTML = `
       <span class="submit-icon">📤</span>
       <span>전체 제출하기</span>
     </button>
-    <div id="integratedMessageDiv" class="message"></div>
   </div>
 `;
 
@@ -233,7 +233,6 @@ getFeedbackBtn.addEventListener("click", async () => {
 
 // 통합 제출 기능
 const integratedSubmitBtn = document.querySelector("#integratedSubmitBtn");
-const integratedMessageDiv = document.querySelector("#integratedMessageDiv");
 
 integratedSubmitBtn.addEventListener("click", async () => {
   // 유효성 검사
@@ -243,14 +242,44 @@ integratedSubmitBtn.addEventListener("click", async () => {
   const reflection = reflectionTextarea.value.trim();
 
   if (!name || !studentId || !message) {
-    integratedMessageDiv.textContent = "기본 정보를 모두 입력해주세요.";
-    integratedMessageDiv.className = "message error";
+    await Swal.fire({
+      icon: "warning",
+      title: "입력 확인",
+      text: "기본 정보(이름, 학번, 하고 싶은 말)를 모두 입력해주세요.",
+      confirmButtonColor: "#667eea",
+      confirmButtonText: "확인",
+    });
     return;
   }
 
-  integratedSubmitBtn.disabled = true;
-  integratedSubmitBtn.innerHTML =
-    '<span class="submit-icon">⏳</span><span>제출 중...</span>';
+  // 제출 확인 다이얼로그
+  const confirmResult = await Swal.fire({
+    title: "제출하시겠습니까?",
+    text: "모든 정보가 Google Form으로 제출됩니다.",
+    icon: "question",
+    showCancelButton: true,
+    confirmButtonColor: "#667eea",
+    cancelButtonColor: "#d33",
+    confirmButtonText: "제출하기",
+    cancelButtonText: "취소",
+    reverseButtons: true,
+  });
+
+  if (!confirmResult.isConfirmed) {
+    return;
+  }
+
+  // 로딩 표시
+  Swal.fire({
+    title: "제출 중...",
+    text: "잠시만 기다려주세요.",
+    allowOutsideClick: false,
+    allowEscapeKey: false,
+    showConfirmButton: false,
+    didOpen: () => {
+      Swal.showLoading();
+    },
+  });
 
   try {
     // 모든 데이터를 하나의 FormData에 통합
@@ -287,8 +316,14 @@ integratedSubmitBtn.addEventListener("click", async () => {
       body: formData,
     });
 
-    integratedMessageDiv.textContent = "모든 항목이 성공적으로 제출되었습니다!";
-    integratedMessageDiv.className = "message success";
+    // 성공 메시지
+    await Swal.fire({
+      icon: "success",
+      title: "제출 완료!",
+      text: "모든 항목이 성공적으로 제출되었습니다.",
+      confirmButtonColor: "#667eea",
+      confirmButtonText: "확인",
+    });
 
     // 폼 초기화
     form.reset();
@@ -301,17 +336,14 @@ integratedSubmitBtn.addEventListener("click", async () => {
     reflectionTextarea.value = "";
     gptFeedback = "";
     feedbackSection.style.display = "none";
-
-    setTimeout(() => {
-      integratedMessageDiv.textContent = "";
-      integratedMessageDiv.className = "message";
-    }, 5000);
   } catch (error) {
-    integratedMessageDiv.textContent = `제출 중 오류가 발생했습니다: ${error.message}`;
-    integratedMessageDiv.className = "message error";
-  } finally {
-    integratedSubmitBtn.disabled = false;
-    integratedSubmitBtn.innerHTML =
-      '<span class="submit-icon">📤</span><span>전체 제출하기</span>';
+    // 오류 메시지
+    await Swal.fire({
+      icon: "error",
+      title: "제출 실패",
+      text: `제출 중 오류가 발생했습니다: ${error.message}`,
+      confirmButtonColor: "#667eea",
+      confirmButtonText: "확인",
+    });
   }
 });
